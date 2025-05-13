@@ -95,8 +95,8 @@ export default function PomodoroTimer() {
 
   // Initialize audio elements
   useEffect(() => {
-    startSoundRef.current = new Audio("/sounds/start.mp3");
-    endSoundRef.current = new Audio("/sounds/end.mp3");
+    startSoundRef.current = new Audio("/sounds/start.wav");
+    endSoundRef.current = new Audio("/sounds/end.wav");
   }, []);
 
   // Load data from localStorage

@@ -1,228 +1,191 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Check, Trash2, Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
 
-type TimerMode = "focus" | "shortBreak" | "longBreak"
-
-type SessionRecord = {
-  type: TimerMode
-  duration: number // in seconds
-  startTime: string
-  endTime: string
-  taskId?: string
+type Task = {
+  id: string
+  name: string
+  completed: boolean
+  pomodorosCompleted: number
+  createdAt: string
 }
 
-type StatisticsDashboardProps = {
-  sessionHistory: SessionRecord[]
-  todayStats: {
-    focusSeconds: number
-    pomodorosCompleted: number
-  }
+type TaskTrackerProps = {
+  tasks: Task[]
+  currentTaskId: string | null
+  onAddTask: (taskName: string) => void
+  onToggleCompletion: (taskId: string) => void
+  onDeleteTask: (taskId: string) => void
+  onSelectTask: (taskId: string | null) => void
 }
 
-export default function StatisticsDashboard({ sessionHistory, todayStats }: StatisticsDashboardProps) {
-  const [timeframe, setTimeframe] = useState<"today" | "week" | "month" | "all">("today")
+export default function TaskTracker({
+  tasks,
+  currentTaskId,
+  onAddTask,
+  onToggleCompletion,
+  onDeleteTask,
+  onSelectTask,
+}: TaskTrackerProps) {
+  const [newTaskName, setNewTaskName] = useState("")
+  const [filter, setFilter] = useState<"all" | "active" | "completed">("all")
 
-  // Format time as HH:MM
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`
-    }
-    return `${minutes}m`
-  }
-
-  // Get filtered sessions based on timeframe
-  const getFilteredSessions = () => {
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-
-    switch (timeframe) {
-      case "today":
-        return sessionHistory.filter((session) => new Date(session.startTime) >= today)
-      case "week": {
-        const weekStart = new Date(today)
-        weekStart.setDate(today.getDate() - today.getDay())
-        return sessionHistory.filter((session) => new Date(session.startTime) >= weekStart)
-      }
-      case "month": {
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-        return sessionHistory.filter((session) => new Date(session.startTime) >= monthStart)
-      }
-      default:
-        return sessionHistory
+  const handleAddTask = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (newTaskName.trim()) {
+      onAddTask(newTaskName.trim())
+      setNewTaskName("")
     }
   }
 
-  // Calculate statistics
-  const calculateStats = () => {
-    const filteredSessions = getFilteredSessions()
+  const filteredTasks = tasks.filter((task) => {
+    if (filter === "active") return !task.completed
+    if (filter === "completed") return task.completed
+    return true
+  })
 
-    const focusSessions = filteredSessions.filter((s) => s.type === "focus")
-    const shortBreakSessions = filteredSessions.filter((s) => s.type === "shortBreak")
-    const longBreakSessions = filteredSessions.filter((s) => s.type === "longBreak")
-
-    const totalFocusTime = focusSessions.reduce((sum, s) => sum + s.duration, 0)
-    const totalShortBreakTime = shortBreakSessions.reduce((sum, s) => sum + s.duration, 0)
-    const totalLongBreakTime = longBreakSessions.reduce((sum, s) => sum + s.duration, 0)
-    const totalBreakTime = totalShortBreakTime + totalLongBreakTime
-
-    const pomodorosCompleted = focusSessions.length
-
-    // Calculate daily averages if applicable
-    let dailyAvgPomodoros = 0
-    let dailyAvgFocusTime = 0
-
-    if (timeframe !== "today") {
-      const days = new Set()
-      filteredSessions.forEach((session) => {
-        const day = session.startTime.split("T")[0]
-        days.add(day)
-      })
-
-      const numDays = Math.max(1, days.size)
-      dailyAvgPomodoros = pomodorosCompleted / numDays
-      dailyAvgFocusTime = totalFocusTime / numDays
-    }
-
-    return {
-      totalFocusTime,
-      totalBreakTime,
-      pomodorosCompleted,
-      dailyAvgPomodoros,
-      dailyAvgFocusTime,
-      focusSessions,
-      shortBreakSessions,
-      longBreakSessions,
-    }
-  }
-
-  const stats = calculateStats()
-
-  // Generate day labels for the chart
-  const generateDayLabels = () => {
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    const today = new Date().getDay()
-
-    if (timeframe === "today") {
-      return [days[today]]
-    } else if (timeframe === "week") {
-      const result = []
-      for (let i = 0; i < 7; i++) {
-        const dayIndex = (today - i + 7) % 7
-        result.unshift(days[dayIndex])
-      }
-      return result
-    } else {
-      return days
-    }
-  }
-
-  // Generate data for the chart
-  const generateChartData = () => {
-    const dayLabels = generateDayLabels()
-    const data = Array(dayLabels.length).fill(0)
-
-    if (timeframe === "today") {
-      data[0] = stats.pomodorosCompleted
-    } else {
-      const filteredSessions = getFilteredSessions()
-      const focusSessions = filteredSessions.filter((s) => s.type === "focus")
-
-      focusSessions.forEach((session) => {
-        const date = new Date(session.startTime)
-        const dayOfWeek = date.getDay()
-        const dayIndex = dayLabels.indexOf(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dayOfWeek])
-
-        if (dayIndex !== -1) {
-          data[dayIndex]++
-        }
-      })
-    }
-
-    return { labels: dayLabels, data }
-  }
-
-  const chartData = generateChartData()
-  const maxValue = Math.max(...chartData.data, 1)
+  const activeTasks = tasks.filter((task) => !task.completed)
+  const completedTasks = tasks.filter((task) => task.completed)
 
   return (
-    <div className="space-y-6 py-4">
-      <Tabs defaultValue="today" onValueChange={(value) => setTimeframe(value as any)}>
-        <TabsList className="grid grid-cols-4">
-          <TabsTrigger value="today">Today</TabsTrigger>
-          <TabsTrigger value="week">Week</TabsTrigger>
-          <TabsTrigger value="month">Month</TabsTrigger>
-          <TabsTrigger value="all">All Time</TabsTrigger>
-        </TabsList>
-      </Tabs>
+    <div className="space-y-4 py-4">
+      {/* Add new task form */}
+      <form onSubmit={handleAddTask} className="flex gap-2">
+        <Input
+          placeholder="Add a new task..."
+          value={newTaskName}
+          onChange={(e) => setNewTaskName(e.target.value)}
+          className="flex-1"
+        />
+        <Button type="submit" size="sm">
+          <Plus className="h-4 w-4 mr-1" />
+          Add
+        </Button>
+      </form>
 
-      {/* Summary stats */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-black/10 rounded-lg p-4 text-center">
-          <div className="text-3xl font-bold">{stats.pomodorosCompleted}</div>
-          <div className="text-sm text-muted-foreground">Pomodoros</div>
-        </div>
-        <div className="bg-black/10 rounded-lg p-4 text-center">
-          <div className="text-3xl font-bold">{formatTime(stats.totalFocusTime)}</div>
-          <div className="text-sm text-muted-foreground">Focus Time</div>
-        </div>
+      {/* Filter tabs */}
+      <div className="flex border-b">
+        <button
+          className={cn(
+            "pb-2 px-4 text-sm font-medium",
+            filter === "all" ? "border-b-2 border-primary" : "text-muted-foreground",
+          )}
+          onClick={() => setFilter("all")}
+        >
+          All ({tasks.length})
+        </button>
+        <button
+          className={cn(
+            "pb-2 px-4 text-sm font-medium",
+            filter === "active" ? "border-b-2 border-primary" : "text-muted-foreground",
+          )}
+          onClick={() => setFilter("active")}
+        >
+          Active ({activeTasks.length})
+        </button>
+        <button
+          className={cn(
+            "pb-2 px-4 text-sm font-medium",
+            filter === "completed" ? "border-b-2 border-primary" : "text-muted-foreground",
+          )}
+          onClick={() => setFilter("completed")}
+        >
+          Completed ({completedTasks.length})
+        </button>
       </div>
 
-      {/* Chart */}
-      <div className="bg-black/10 rounded-lg p-4">
-        <h3 className="text-sm font-medium mb-2">Pomodoros Completed</h3>
-        <div className="h-40 flex items-end justify-between gap-1">
-          {chartData.data.map((value, index) => (
-            <div key={index} className="flex flex-col items-center flex-1">
-              <div
-                className="w-full bg-rose-500/70 rounded-t"
-                style={{
-                  height: `${(value / maxValue) * 100}%`,
-                  minHeight: value > 0 ? "4px" : "0",
-                }}
-              ></div>
-              <div className="text-xs mt-1">{chartData.labels[index]}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Task list */}
+      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+        {filteredTasks.length === 0 ? (
+          <div className="text-center py-4 text-muted-foreground">No tasks found</div>
+        ) : (
+          filteredTasks.map((task) => (
+            <div
+              key={task.id}
+              className={cn(
+                "flex items-center justify-between p-3 rounded-md",
+                task.completed ? "bg-black/10" : "bg-black/5",
+                currentTaskId === task.id && "border border-primary/50",
+              )}
+            >
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <button
+                  onClick={() => onToggleCompletion(task.id)}
+                  className={cn(
+                    "h-5 w-5 rounded-full border flex items-center justify-center",
+                    task.completed ? "bg-primary border-primary" : "border-gray-400",
+                  )}
+                >
+                  {task.completed && <Check className="h-3 w-3 text-white" />}
+                </button>
 
-      {/* Additional stats */}
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm">
-          <span>Focus sessions:</span>
-          <span>{stats.focusSessions.length}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span>Short breaks:</span>
-          <span>{stats.shortBreakSessions.length}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span>Long breaks:</span>
-          <span>{stats.longBreakSessions.length}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span>Break time:</span>
-          <span>{formatTime(stats.totalBreakTime)}</span>
-        </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className={cn(
+                      "text-sm font-medium truncate",
+                      task.completed && "line-through text-muted-foreground",
+                    )}
+                  >
+                    {task.name}
+                  </p>
+                  {task.pomodorosCompleted > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {task.pomodorosCompleted} pomodoro{task.pomodorosCompleted !== 1 && "s"}
+                    </p>
+                  )}
+                </div>
+              </div>
 
-        {timeframe !== "today" && (
-          <>
-            <div className="flex justify-between text-sm">
-              <span>Daily avg. pomodoros:</span>
-              <span>{stats.dailyAvgPomodoros.toFixed(1)}</span>
+              <div className="flex items-center gap-2">
+                {!task.completed && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onSelectTask(currentTaskId === task.id ? null : task.id)}
+                    className={cn("text-xs h-8", currentTaskId === task.id ? "bg-primary/20" : "")}
+                  >
+                    {currentTaskId === task.id ? "Unselect" : "Select"}
+                  </Button>
+                )}
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onDeleteTask(task.id)}
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <div className="flex justify-between text-sm">
-              <span>Daily avg. focus time:</span>
-              <span>{formatTime(stats.dailyAvgFocusTime)}</span>
-            </div>
-          </>
+          ))
         )}
       </div>
+
+      {tasks.length > 0 && (
+        <div className="flex justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              const confirmed = window.confirm("Are you sure you want to delete all completed tasks?")
+              if (confirmed) {
+                completedTasks.forEach((task) => onDeleteTask(task.id))
+              }
+            }}
+            className="text-xs"
+            disabled={completedTasks.length === 0}
+          >
+            Clear completed
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

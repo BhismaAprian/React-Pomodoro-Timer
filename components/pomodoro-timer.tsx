@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect, useRef } from "react"
 import { Pause, Play, RefreshCw, Settings, Bell, BellOff, BarChart2, ListTodo, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"

@@ -3,7 +3,7 @@
 import { DialogTrigger } from "@/components/ui/dialog"
 
 import { useState, useEffect, useRef } from "react"
-import { Pause, Play, RefreshCw, Settings, Bell, BellOff, ListTodo } from "lucide-react"
+import { Pause, Play, RefreshCw, Settings, Bell, BellOff, ListTodo, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -274,11 +274,26 @@ export default function PomodoroTimer() {
   const getModeInfo = () => {
     switch (mode) {
       case "focus":
-        return { label: "Focus Time", color: "from-rose-400 to-pink-500", icon: "🎯" }
+        return {
+          label: "Focus Time",
+          color: "from-rose-400 via-pink-500 to-purple-600",
+          icon: "🎯",
+          bgGlow: "shadow-rose-500/25",
+        }
       case "shortBreak":
-        return { label: "Short Break", color: "from-emerald-400 to-teal-500", icon: "☕" }
+        return {
+          label: "Short Break",
+          color: "from-emerald-400 via-teal-500 to-cyan-600",
+          icon: "☕",
+          bgGlow: "shadow-emerald-500/25",
+        }
       case "longBreak":
-        return { label: "Long Break", color: "from-blue-400 to-indigo-500", icon: "🌟" }
+        return {
+          label: "Long Break",
+          color: "from-blue-400 via-indigo-500 to-purple-600",
+          icon: "🌟",
+          bgGlow: "shadow-blue-500/25",
+        }
     }
   }
 
@@ -297,312 +312,399 @@ export default function PomodoroTimer() {
         <video className="absolute inset-0 object-cover w-full h-full" src={background.video} autoPlay muted loop />
       )}
 
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-white/5 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-full blur-3xl animate-spin"
+          style={{ animationDuration: "20s" }}
+        ></div>
+      </div>
+
       {/* Overlay */}
       <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px]" />
 
-      {/* Header */}
-      <header className="relative z-20 w-full">
-        <div className="bg-white/10 backdrop-blur-xl border-b border-white/20">
-          <div className="container mx-auto px-6 h-20 flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm flex items-center justify-center">
-                  <span className="text-2xl">🍅</span>
-                </div>
-                <div>
-                  <h1 className="text-white text-xl font-bold tracking-tight">Pomodoro</h1>
-                  <p className="text-white/70 text-sm">Focus & Productivity</p>
-                </div>
-              </div>
+      {/* Floating Brand */}
+      <div className="absolute top-8 left-8 z-30">
+        <div className="flex items-center space-x-3 bg-white/10 backdrop-blur-2xl rounded-2xl px-6 py-4 border border-white/20 shadow-2xl">
+          <div className="relative">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-lg">
+              <span className="text-2xl">🍅</span>
             </div>
-
-            <div className="flex items-center space-x-3">
-              {/* Tasks Button */}
-              <Dialog open={tasksOpen} onOpenChange={setTasksOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="text-white hover:bg-white/10 border border-white/20 backdrop-blur-sm px-4 py-2 rounded-xl transition-all duration-200"
-                  >
-                    <ListTodo className="h-4 w-4 mr-2" />
-                    Tasks
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-hidden">
-                  <DialogHeader>
-                    <DialogTitle className="text-xl font-bold">Task Manager</DialogTitle>
-                  </DialogHeader>
-                  <TaskManager
-                    taskGroups={taskGroups}
-                    setTaskGroups={setTaskGroups}
-                    currentTaskId={currentTaskId}
-                    setCurrentTaskId={setCurrentTaskId}
-                  />
-                </DialogContent>
-              </Dialog>
-
-              {/* Settings Button */}
-              <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="text-white hover:bg-white/10 border border-white/20 backdrop-blur-sm p-3 rounded-xl transition-all duration-200"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="text-xl font-bold">Timer Settings</DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-6 py-4">
-                    <div className="grid gap-3">
-                      <Label htmlFor="focusTime" className="text-sm font-medium">
-                        Focus Time (minutes)
-                      </Label>
-                      <Input
-                        id="focusTime"
-                        type="number"
-                        min="1"
-                        max="60"
-                        value={settings.focus / 60}
-                        onChange={(e) => {
-                          const value = Number.parseInt(e.target.value)
-                          if (!isNaN(value) && value > 0) {
-                            setSettings({ ...settings, focus: value * 60 })
-                          }
-                        }}
-                        className="rounded-xl"
-                      />
-                    </div>
-
-                    <div className="grid gap-3">
-                      <Label htmlFor="shortBreakTime" className="text-sm font-medium">
-                        Short Break (minutes)
-                      </Label>
-                      <Input
-                        id="shortBreakTime"
-                        type="number"
-                        min="1"
-                        max="30"
-                        value={settings.shortBreak / 60}
-                        onChange={(e) => {
-                          const value = Number.parseInt(e.target.value)
-                          if (!isNaN(value) && value > 0) {
-                            setSettings({ ...settings, shortBreak: value * 60 })
-                          }
-                        }}
-                        className="rounded-xl"
-                      />
-                    </div>
-
-                    <div className="grid gap-3">
-                      <Label htmlFor="longBreakTime" className="text-sm font-medium">
-                        Long Break (minutes)
-                      </Label>
-                      <Input
-                        id="longBreakTime"
-                        type="number"
-                        min="1"
-                        max="60"
-                        value={settings.longBreak / 60}
-                        onChange={(e) => {
-                          const value = Number.parseInt(e.target.value)
-                          if (!isNaN(value) && value > 0) {
-                            setSettings({ ...settings, longBreak: value * 60 })
-                          }
-                        }}
-                        className="rounded-xl"
-                      />
-                    </div>
-
-                    <div className="grid gap-3">
-                      <Label htmlFor="longBreakInterval" className="text-sm font-medium">
-                        Long Break Interval
-                      </Label>
-                      <Input
-                        id="longBreakInterval"
-                        type="number"
-                        min="1"
-                        max="10"
-                        value={settings.longBreakInterval}
-                        onChange={(e) => {
-                          const value = Number.parseInt(e.target.value)
-                          if (!isNaN(value) && value > 0) {
-                            setSettings({ ...settings, longBreakInterval: value })
-                          }
-                        }}
-                        className="rounded-xl"
-                      />
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="autoStartBreaks"
-                          checked={settings.autoStartBreaks}
-                          onChange={(e) => {
-                            setSettings({ ...settings, autoStartBreaks: e.target.checked })
-                          }}
-                          className="w-4 h-4 rounded border-gray-300"
-                        />
-                        <Label htmlFor="autoStartBreaks" className="text-sm font-medium">
-                          Auto-start Breaks
-                        </Label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="autoStartPomodoros"
-                          checked={settings.autoStartPomodoros}
-                          onChange={(e) => {
-                            setSettings({ ...settings, autoStartPomodoros: e.target.checked })
-                          }}
-                          className="w-4 h-4 rounded border-gray-300"
-                        />
-                        <Label htmlFor="autoStartPomodoros" className="text-sm font-medium">
-                          Auto-start Pomodoros
-                        </Label>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end pt-4">
-                    <Button onClick={() => setSettingsOpen(false)} className="rounded-xl px-6">
-                      Save Settings
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              {/* Notification Toggle */}
-              {notificationsSupported && (
-                <Button
-                  variant="ghost"
-                  onClick={toggleNotifications}
-                  className="text-white hover:bg-white/10 border border-white/20 backdrop-blur-sm p-3 rounded-xl transition-all duration-200"
-                  title={notificationsEnabled ? "Disable notifications" : "Enable notifications"}
-                >
-                  {notificationsEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-                </Button>
-              )}
-
-              {/* Background Selector */}
-              <BackgroundSelector currentBackground={background} onBackgroundChange={setBackground} />
-            </div>
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full animate-pulse"></div>
+          </div>
+          <div>
+            <h1 className="text-white text-xl font-bold tracking-tight">Pomodoro</h1>
+            <p className="text-white/70 text-sm">Focus Studio</p>
           </div>
         </div>
-      </header>
+      </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center w-full min-h-[calc(100vh-5rem)] px-6 py-8">
-        <div className="w-full max-w-lg mx-auto">
-          {/* Timer Card */}
-          <div className="bg-white/10 backdrop-blur-2xl rounded-3xl p-8 shadow-2xl border border-white/20 mb-8">
-            {/* Mode Selector */}
-            <div className="flex items-center justify-center mb-8">
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-1 border border-white/20">
-                <div className="flex space-x-1">
-                  {[
-                    { mode: "focus" as TimerMode, label: "Focus", icon: "🎯" },
-                    { mode: "shortBreak" as TimerMode, label: "Short", icon: "☕" },
-                    { mode: "longBreak" as TimerMode, label: "Long", icon: "🌟" },
-                  ].map(({ mode: m, label, icon }) => (
-                    <button
-                      key={m}
-                      onClick={() => changeMode(m)}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                        mode === m
-                          ? "bg-white text-gray-900 shadow-lg"
-                          : "text-white/80 hover:text-white hover:bg-white/10"
-                      }`}
-                    >
-                      <span className="mr-2">{icon}</span>
-                      {label}
-                    </button>
-                  ))}
+      {/* Floating Controls - Top Right */}
+      <div className="absolute top-8 right-8 z-30 flex flex-col space-y-4">
+        {/* Background Selector */}
+        <div className="bg-white/10 backdrop-blur-2xl rounded-2xl p-2 border border-white/20 shadow-2xl">
+          <BackgroundSelector currentBackground={background} onBackgroundChange={setBackground} />
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-white/10 backdrop-blur-2xl rounded-2xl p-2 border border-white/20 shadow-2xl">
+          <div className="flex flex-col space-y-2">
+            {/* Tasks Button */}
+            <Dialog open={tasksOpen} onOpenChange={setTasksOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-12 h-12 rounded-xl text-white hover:bg-white/20 transition-all duration-300 group"
+                  title="Task Manager"
+                >
+                  <ListTodo className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                    Task Manager
+                  </DialogTitle>
+                </DialogHeader>
+                <TaskManager
+                  taskGroups={taskGroups}
+                  setTaskGroups={setTaskGroups}
+                  currentTaskId={currentTaskId}
+                  setCurrentTaskId={setCurrentTaskId}
+                />
+              </DialogContent>
+            </Dialog>
+
+            {/* Settings Button */}
+            <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-12 h-12 rounded-xl text-white hover:bg-white/20 transition-all duration-300 group"
+                  title="Settings"
+                >
+                  <Settings className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                    Timer Settings
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-6 py-4">
+                  <div className="grid gap-3">
+                    <Label htmlFor="focusTime" className="text-sm font-medium flex items-center">
+                      <span className="mr-2">🎯</span>
+                      Focus Time (minutes)
+                    </Label>
+                    <Input
+                      id="focusTime"
+                      type="number"
+                      min="1"
+                      max="60"
+                      value={settings.focus / 60}
+                      onChange={(e) => {
+                        const value = Number.parseInt(e.target.value)
+                        if (!isNaN(value) && value > 0) {
+                          setSettings({ ...settings, focus: value * 60 })
+                        }
+                      }}
+                      className="rounded-xl border-2 focus:border-purple-400 transition-colors"
+                    />
+                  </div>
+
+                  <div className="grid gap-3">
+                    <Label htmlFor="shortBreakTime" className="text-sm font-medium flex items-center">
+                      <span className="mr-2">☕</span>
+                      Short Break (minutes)
+                    </Label>
+                    <Input
+                      id="shortBreakTime"
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={settings.shortBreak / 60}
+                      onChange={(e) => {
+                        const value = Number.parseInt(e.target.value)
+                        if (!isNaN(value) && value > 0) {
+                          setSettings({ ...settings, shortBreak: value * 60 })
+                        }
+                      }}
+                      className="rounded-xl border-2 focus:border-emerald-400 transition-colors"
+                    />
+                  </div>
+
+                  <div className="grid gap-3">
+                    <Label htmlFor="longBreakTime" className="text-sm font-medium flex items-center">
+                      <span className="mr-2">🌟</span>
+                      Long Break (minutes)
+                    </Label>
+                    <Input
+                      id="longBreakTime"
+                      type="number"
+                      min="1"
+                      max="60"
+                      value={settings.longBreak / 60}
+                      onChange={(e) => {
+                        const value = Number.parseInt(e.target.value)
+                        if (!isNaN(value) && value > 0) {
+                          setSettings({ ...settings, longBreak: value * 60 })
+                        }
+                      }}
+                      className="rounded-xl border-2 focus:border-blue-400 transition-colors"
+                    />
+                  </div>
+
+                  <div className="grid gap-3">
+                    <Label htmlFor="longBreakInterval" className="text-sm font-medium flex items-center">
+                      <span className="mr-2">🔄</span>
+                      Long Break Interval
+                    </Label>
+                    <Input
+                      id="longBreakInterval"
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={settings.longBreakInterval}
+                      onChange={(e) => {
+                        const value = Number.parseInt(e.target.value)
+                        if (!isNaN(value) && value > 0) {
+                          setSettings({ ...settings, longBreakInterval: value })
+                        }
+                      }}
+                      className="rounded-xl border-2 focus:border-indigo-400 transition-colors"
+                    />
+                  </div>
+
+                  <div className="space-y-4 bg-gray-50 dark:bg-slate-800 rounded-xl p-4">
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        id="autoStartBreaks"
+                        checked={settings.autoStartBreaks}
+                        onChange={(e) => {
+                          setSettings({ ...settings, autoStartBreaks: e.target.checked })
+                        }}
+                        className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                      />
+                      <Label htmlFor="autoStartBreaks" className="text-sm font-medium">
+                        Auto-start Breaks
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        id="autoStartPomodoros"
+                        checked={settings.autoStartPomodoros}
+                        onChange={(e) => {
+                          setSettings({ ...settings, autoStartPomodoros: e.target.checked })
+                        }}
+                        className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                      />
+                      <Label htmlFor="autoStartPomodoros" className="text-sm font-medium">
+                        Auto-start Pomodoros
+                      </Label>
+                    </div>
+                  </div>
                 </div>
+
+                <div className="flex justify-end pt-4">
+                  <Button
+                    onClick={() => setSettingsOpen(false)}
+                    className="rounded-xl px-8 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 transition-all duration-300"
+                  >
+                    Save Settings
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Notification Toggle */}
+            {notificationsSupported && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleNotifications}
+                className="w-12 h-12 rounded-xl text-white hover:bg-white/20 transition-all duration-300 group"
+                title={notificationsEnabled ? "Disable notifications" : "Enable notifications"}
+              >
+                {notificationsEnabled ? (
+                  <Bell className="h-5 w-5 group-hover:animate-bounce" />
+                ) : (
+                  <BellOff className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Timer Container */}
+      <div className="relative z-10 flex items-center justify-center w-full min-h-screen px-6">
+        <div className="relative">
+          {/* Floating Mode Selector */}
+          <div className="absolute -top-24 left-1/2 transform -translate-x-1/2 z-20">
+            <div className="bg-white/15 backdrop-blur-2xl rounded-3xl p-2 border border-white/30 shadow-2xl">
+              <div className="flex space-x-2">
+                {[
+                  { mode: "focus" as TimerMode, label: "Focus", icon: "🎯", color: "from-rose-400 to-pink-500" },
+                  {
+                    mode: "shortBreak" as TimerMode,
+                    label: "Break",
+                    icon: "☕",
+                    color: "from-emerald-400 to-teal-500",
+                  },
+                  { mode: "longBreak" as TimerMode, label: "Rest", icon: "🌟", color: "from-blue-400 to-indigo-500" },
+                ].map(({ mode: m, label, icon, color }) => (
+                  <button
+                    key={m}
+                    onClick={() => changeMode(m)}
+                    className={`relative px-6 py-3 rounded-2xl text-sm font-semibold transition-all duration-300 ${
+                      mode === m
+                        ? `bg-gradient-to-r ${color} text-white shadow-lg scale-105`
+                        : "text-white/80 hover:text-white hover:bg-white/10 hover:scale-105"
+                    }`}
+                  >
+                    <span className="mr-2 text-lg">{icon}</span>
+                    {label}
+                    {mode === m && <div className="absolute inset-0 rounded-2xl bg-white/20 animate-pulse"></div>}
+                  </button>
+                ))}
               </div>
             </div>
+          </div>
+
+          {/* Main Timer Card */}
+          <div
+            className={`relative bg-white/10 backdrop-blur-3xl rounded-[3rem] p-12 shadow-2xl border border-white/20 ${modeInfo.bgGlow} shadow-2xl`}
+          >
+            {/* Decorative Elements */}
+            <div className="absolute -top-6 -left-6 w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl rotate-12 opacity-80"></div>
+            <div className="absolute -bottom-4 -right-4 w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-500 rounded-xl rotate-45 opacity-60"></div>
 
             {/* Current Task Display */}
             {currentTaskId && (
-              <div className="text-center mb-6">
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/20">
-                  <p className="text-white/80 text-sm font-medium mb-1">Current Task</p>
-                  <p className="text-white font-semibold truncate">{getCurrentTaskName()}</p>
+              <div className="absolute -top-16 left-8 right-8">
+                <div className="bg-gradient-to-r from-white/20 to-white/10 backdrop-blur-xl rounded-2xl px-6 py-3 border border-white/30 shadow-xl">
+                  <div className="flex items-center justify-center space-x-3">
+                    <Sparkles className="h-4 w-4 text-yellow-300 animate-pulse" />
+                    <p className="text-white font-medium text-center truncate">{getCurrentTaskName()}</p>
+                    <Sparkles className="h-4 w-4 text-yellow-300 animate-pulse" />
+                  </div>
                 </div>
               </div>
             )}
 
             {/* Timer Display */}
-            <div className="relative flex flex-col items-center justify-center mb-8">
+            <div className="relative flex flex-col items-center justify-center">
               {/* Progress Circle */}
-              <div className="relative w-64 h-64 mb-6">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="2" />
+              <div className="relative w-80 h-80 mb-8">
+                {/* Outer decorative ring */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-white/10 to-white/5 p-4">
+                  <div className="w-full h-full rounded-full bg-white/5"></div>
+                </div>
+
+                {/* Main progress circle */}
+                <svg className="w-full h-full transform -rotate-90 absolute inset-0" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="2" />
                   <circle
                     cx="50"
                     cy="50"
-                    r="45"
+                    r="42"
                     fill="none"
-                    stroke="url(#gradient)"
+                    stroke="url(#progressGradient)"
                     strokeWidth="3"
                     strokeLinecap="round"
-                    strokeDasharray="283"
-                    strokeDashoffset={283 - (283 * calculateProgress()) / 100}
-                    className="transition-all duration-1000 ease-out"
+                    strokeDasharray="264"
+                    strokeDashoffset={264 - (264 * calculateProgress()) / 100}
+                    className="transition-all duration-1000 ease-out drop-shadow-lg"
                   />
                   <defs>
-                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" stopColor="rgba(255,255,255,0.9)" />
-                      <stop offset="100%" stopColor="rgba(255,255,255,0.6)" />
+                      <stop offset="50%" stopColor="rgba(255,255,255,0.7)" />
+                      <stop offset="100%" stopColor="rgba(255,255,255,0.5)" />
                     </linearGradient>
                   </defs>
                 </svg>
 
                 {/* Timer Text */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <div className="text-6xl font-bold text-white mb-2 tracking-tight">{formatTime(timeRemaining)}</div>
-                  <div className="text-white/80 text-lg font-medium">{modeInfo.label}</div>
+                  <div className="text-7xl font-bold text-white mb-2 tracking-tight drop-shadow-lg">
+                    {formatTime(timeRemaining)}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-2xl">{modeInfo.icon}</span>
+                    <div className="text-white/90 text-xl font-medium">{modeInfo.label}</div>
+                  </div>
+                </div>
+
+                {/* Floating progress indicator */}
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-4">
+                  <div className="bg-white/20 backdrop-blur-xl rounded-full px-4 py-2 border border-white/30">
+                    <span className="text-white text-sm font-medium">{Math.round(calculateProgress())}%</span>
+                  </div>
                 </div>
               </div>
 
               {/* Controls */}
-              <div className="flex items-center justify-center space-x-4">
+              <div className="flex items-center justify-center space-x-6">
                 <Button
                   variant="ghost"
                   onClick={resetTimer}
-                  className="w-14 h-14 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-sm transition-all duration-200"
+                  className="w-16 h-16 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-sm transition-all duration-300 hover:scale-110 group"
                 >
-                  <RefreshCw className="h-6 w-6 text-white" />
+                  <RefreshCw className="h-6 w-6 text-white group-hover:rotate-180 transition-transform duration-500" />
                 </Button>
 
                 <Button
                   variant="ghost"
                   onClick={toggleTimer}
-                  className="w-20 h-20 rounded-2xl bg-white/20 hover:bg-white/30 border border-white/30 backdrop-blur-sm transition-all duration-200 shadow-xl"
+                  className="w-24 h-24 rounded-3xl bg-white/20 hover:bg-white/30 border border-white/30 backdrop-blur-sm transition-all duration-300 hover:scale-110 shadow-2xl group"
                 >
-                  {isRunning ? <Pause className="h-8 w-8 text-white" /> : <Play className="h-8 w-8 text-white ml-1" />}
+                  {isRunning ? (
+                    <Pause className="h-10 w-10 text-white group-hover:scale-110 transition-transform" />
+                  ) : (
+                    <Play className="h-10 w-10 text-white ml-1 group-hover:scale-110 transition-transform" />
+                  )}
                 </Button>
               </div>
             </div>
+          </div>
 
-            {/* Session Counter */}
-            <div className="text-center">
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl px-6 py-3 border border-white/20 inline-block">
-                <span className="text-white/80 text-sm font-medium">Completed: </span>
-                <span className="text-white text-lg font-bold">{completedPomodoros}</span>
-                <span className="text-white/80 text-sm font-medium"> pomodoros</span>
+          {/* Floating Stats */}
+          <div className="absolute -bottom-20 left-1/2 transform -translate-x-1/2">
+            <div className="bg-white/15 backdrop-blur-2xl rounded-2xl px-8 py-4 border border-white/30 shadow-xl">
+              <div className="flex items-center space-x-6">
+                <div className="text-center">
+                  <div className="text-white text-2xl font-bold">{completedPomodoros}</div>
+                  <div className="text-white/70 text-sm font-medium">Completed</div>
+                </div>
+                <div className="w-px h-8 bg-white/30"></div>
+                <div className="text-center">
+                  <div className="text-white text-2xl font-bold">
+                    {Math.floor((completedPomodoros * settings.focus) / 3600)}h{" "}
+                    {Math.floor(((completedPomodoros * settings.focus) % 3600) / 60)}m
+                  </div>
+                  <div className="text-white/70 text-sm font-medium">Focus Time</div>
+                </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Creator Credit */}
-        <div className="text-white/50 text-sm text-center">Created by Bhisma Aprian Prayogi</div>
+      {/* Floating Creator Credit */}
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20">
+        <div className="bg-white/10 backdrop-blur-xl rounded-full px-6 py-2 border border-white/20">
+          <p className="text-white/60 text-sm">Created by Bhisma Aprian Prayogi</p>
+        </div>
       </div>
     </div>
   )

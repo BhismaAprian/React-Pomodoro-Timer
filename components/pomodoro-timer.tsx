@@ -1,584 +1,365 @@
-"use client";
+"use client"
 
-import { useState, useEffect, useRef } from "react";
-import {
-  Pause,
-  Play,
-  RefreshCw,
-  Settings,
-  Bell,
-  BellOff,
-  BarChart2,
-  ListTodo,
-  Menu,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import BackgroundSelector from "./background-selector";
-import StatisticsDashboard from "./statistics-dashboard";
-import TaskTracker from "./task-tracker";
+import { DialogTrigger } from "@/components/ui/dialog"
 
-type TimerMode = "focus" | "shortBreak" | "longBreak";
+import { useState, useEffect, useRef } from "react"
+import { Pause, Play, RefreshCw, Settings, Bell, BellOff, ListTodo } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import BackgroundSelector from "./background-selector"
+import TaskManager from "./task-manager"
+
+type TimerMode = "focus" | "shortBreak" | "longBreak"
+
+type TaskGroup = {
+  id: string
+  name: string
+  tasks: Task[]
+  isExpanded: boolean
+  createdAt: string
+}
+
 type Task = {
-  id: string;
-  name: string;
-  completed: boolean;
-  pomodorosCompleted: number;
-  createdAt: string;
-};
+  id: string
+  name: string
+  duration: number // in minutes
+  completed: boolean
+  pomodorosCompleted: number
+  subtasks: Subtask[]
+  createdAt: string
+}
 
-type SessionRecord = {
-  type: TimerMode;
-  duration: number; // in seconds
-  startTime: string;
-  endTime: string;
-  taskId?: string;
-};
+type Subtask = {
+  id: string
+  name: string
+  completed: boolean
+}
 
 export default function PomodoroTimer() {
   // Timer settings
   const [settings, setSettings] = useState({
-    focus: 25 * 60, // 25 minutes in seconds
-    shortBreak: 5 * 60, // 5 minutes in seconds
-    longBreak: 15 * 60, // 15 minutes in seconds
+    focus: 25 * 60,
+    shortBreak: 5 * 60,
+    longBreak: 15 * 60,
     autoStartBreaks: true,
     autoStartPomodoros: true,
     longBreakInterval: 4,
-  });
+  })
 
   // Timer state
-  const [mode, setMode] = useState<TimerMode>("focus");
-  const [timeRemaining, setTimeRemaining] = useState(settings.focus);
-  const [isRunning, setIsRunning] = useState(false);
-  const [completedPomodoros, setCompletedPomodoros] = useState(0);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [statsOpen, setStatsOpen] = useState(false);
-  const [tasksOpen, setTasksOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mode, setMode] = useState<TimerMode>("focus")
+  const [timeRemaining, setTimeRemaining] = useState(settings.focus)
+  const [isRunning, setIsRunning] = useState(false)
+  const [completedPomodoros, setCompletedPomodoros] = useState(0)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [tasksOpen, setTasksOpen] = useState(false)
 
   // Background state
   const [background, setBackground] = useState({
     type: "gradient" as "gradient" | "image" | "video",
-    gradient: "bg-gradient-to-br from-rose-500 to-indigo-700",
+    gradient: "bg-gradient-to-br from-violet-500 via-purple-500 to-blue-500",
     image: "",
     video: "",
-  });
+  })
 
   // Notification state
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [notificationsSupported, setNotificationsSupported] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false)
+  const [notificationsSupported, setNotificationsSupported] = useState(false)
 
   // Task state
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
-
-  // Statistics state
-  const [sessionHistory, setSessionHistory] = useState<SessionRecord[]>([]);
-  const [todayStats, setTodayStats] = useState({
-    focusSeconds: 0,
-    pomodorosCompleted: 0,
-  });
+  const [taskGroups, setTaskGroups] = useState<TaskGroup[]>([])
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null)
 
   // Audio refs
-  const startSoundRef = useRef<HTMLAudioElement | null>(null);
-  const endSoundRef = useRef<HTMLAudioElement | null>(null);
-  const sessionStartTime = useRef<string | null>(null);
-
-  // Initialize audio elements
-  useEffect(() => {
-    startSoundRef.current = new Audio("/sounds/start.wav");
-    endSoundRef.current = new Audio("/sounds/end.wav");
-  }, []);
+  const startSoundRef = useRef<HTMLAudioElement | null>(null)
+  const endSoundRef = useRef<HTMLAudioElement | null>(null)
 
   // Load data from localStorage
   useEffect(() => {
-    // Load settings
-    const savedSettings = localStorage.getItem("pomodoroSettings");
+    const savedSettings = localStorage.getItem("pomodoroSettings")
     if (savedSettings) {
-      const parsedSettings = JSON.parse(savedSettings);
-      setSettings(parsedSettings);
-      setTimeRemaining(parsedSettings.focus);
+      const parsedSettings = JSON.parse(savedSettings)
+      setSettings(parsedSettings)
+      setTimeRemaining(parsedSettings.focus)
     }
 
-    // Load tasks
-    const savedTasks = localStorage.getItem("pomodoroTasks");
-    if (savedTasks) {
-      setTasks(JSON.parse(savedTasks));
+    const savedTaskGroups = localStorage.getItem("pomodoroTaskGroups")
+    if (savedTaskGroups) {
+      setTaskGroups(JSON.parse(savedTaskGroups))
     }
 
-    // Load session history
-    const savedHistory = localStorage.getItem("pomodoroSessionHistory");
-    if (savedHistory) {
-      setSessionHistory(JSON.parse(savedHistory));
-    }
-
-    // Calculate today's stats
-    calculateTodayStats();
-
-    // Check if notifications are supported and permission is granted
     if ("Notification" in window) {
-      setNotificationsSupported(true);
+      setNotificationsSupported(true)
       if (Notification.permission === "granted") {
-        setNotificationsEnabled(true);
+        setNotificationsEnabled(true)
       }
     }
-  }, []);
+  }, [])
 
-  // Save settings to localStorage when they change
+  // Save settings and task groups
   useEffect(() => {
-    localStorage.setItem("pomodoroSettings", JSON.stringify(settings));
-  }, [settings]);
+    localStorage.setItem("pomodoroSettings", JSON.stringify(settings))
+  }, [settings])
 
-  // Save tasks to localStorage when they change
   useEffect(() => {
-    localStorage.setItem("pomodoroTasks", JSON.stringify(tasks));
-  }, [tasks]);
-
-  // Save session history to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem(
-      "pomodoroSessionHistory",
-      JSON.stringify(sessionHistory)
-    );
-    calculateTodayStats();
-  }, [sessionHistory]);
-
-  // Calculate today's statistics
-  const calculateTodayStats = () => {
-    const today = new Date().toISOString().split("T")[0];
-
-    const todaySessions = sessionHistory.filter((session) =>
-      session.startTime.startsWith(today)
-    );
-
-    const focusSeconds = todaySessions
-      .filter((session) => session.type === "focus")
-      .reduce((total, session) => total + session.duration, 0);
-
-    const pomodorosCompleted = todaySessions.filter(
-      (session) => session.type === "focus"
-    ).length;
-
-    setTodayStats({
-      focusSeconds,
-      pomodorosCompleted,
-    });
-  };
+    localStorage.setItem("pomodoroTaskGroups", JSON.stringify(taskGroups))
+  }, [taskGroups])
 
   // Request notification permission
   const requestNotificationPermission = async () => {
     if (!("Notification" in window)) {
-      alert("This browser does not support desktop notifications");
-      return;
+      alert("This browser does not support desktop notifications")
+      return
     }
 
     try {
-      const permission = await Notification.requestPermission();
+      const permission = await Notification.requestPermission()
       if (permission === "granted") {
-        setNotificationsEnabled(true);
+        setNotificationsEnabled(true)
       }
     } catch (error) {
-      console.error("Error requesting notification permission:", error);
+      console.error("Error requesting notification permission:", error)
     }
-  };
+  }
 
   // Send notification
   const sendNotification = (title: string, body: string) => {
-    // Check if notifications are enabled and the document is hidden
     if (notificationsEnabled && document.hidden) {
       const notification = new Notification(title, {
         body,
-        icon: "/favicon.ico", // You can add a favicon for the notification
-      });
+        icon: "/favicon.ico",
+      })
 
-      // Auto close after 5 seconds
-      setTimeout(() => notification.close(), 5000);
-
-      // Focus the window when notification is clicked
+      setTimeout(() => notification.close(), 5000)
       notification.onclick = () => {
-        window.focus();
-        notification.close();
-      };
+        window.focus()
+        notification.close()
+      }
     }
-  };
+  }
 
   // Toggle notifications
   const toggleNotifications = async () => {
     if (notificationsEnabled) {
-      setNotificationsEnabled(false);
+      setNotificationsEnabled(false)
     } else {
-      await requestNotificationPermission();
+      await requestNotificationPermission()
     }
-  };
+  }
 
   // Timer effect
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
+    let interval: NodeJS.Timeout | null = null
 
     if (isRunning && timeRemaining > 0) {
-      // If starting a new session, record the start time
-      if (!sessionStartTime.current) {
-        sessionStartTime.current = new Date().toISOString();
-      }
-
       interval = setInterval(() => {
-        setTimeRemaining((prev) => prev - 1);
-      }, 1000);
+        setTimeRemaining((prev) => prev - 1)
+      }, 1000)
     } else if (isRunning && timeRemaining === 0) {
       // Timer completed
-      endSoundRef.current?.play();
+      if (mode === "focus") {
+        sendNotification(
+          "Focus Session Complete! 🎉",
+          `Well done! You've completed ${completedPomodoros + 1} pomodoros. Time for a break.`,
+        )
 
-      // Record the completed session
-      if (sessionStartTime.current) {
-        const endTime = new Date().toISOString();
-        const sessionDuration =
-          mode === "focus"
-            ? settings.focus
-            : mode === "shortBreak"
-            ? settings.shortBreak
-            : settings.longBreak;
-
-        const newSession: SessionRecord = {
-          type: mode,
-          duration: sessionDuration,
-          startTime: sessionStartTime.current,
-          endTime: endTime,
-          taskId: currentTaskId || undefined,
-        };
-
-        setSessionHistory((prev) => [...prev, newSession]);
-        sessionStartTime.current = null;
-
-        // Update task if it's a focus session
-        if (mode === "focus" && currentTaskId) {
-          setTasks((prevTasks) =>
-            prevTasks.map((task) =>
-              task.id === currentTaskId
-                ? { ...task, pomodorosCompleted: task.pomodorosCompleted + 1 }
-                : task
-            )
-          );
+        // Update task pomodoros if current task is selected
+        if (currentTaskId) {
+          setTaskGroups((prevGroups) =>
+            prevGroups.map((group) => ({
+              ...group,
+              tasks: group.tasks.map((task) =>
+                task.id === currentTaskId ? { ...task, pomodorosCompleted: task.pomodorosCompleted + 1 } : task,
+              ),
+            })),
+          )
         }
-      }
-
-      // Send notification based on completed timer type
-      if (mode === "focus") {
-        sendNotification(
-          "Focus Session Complete!",
-          `Well done! You've completed ${
-            completedPomodoros + 1
-          } pomodoros. Time for a break.`
-        );
       } else {
-        sendNotification(
-          "Break Complete!",
-          "Break time is over. Ready to focus again?"
-        );
+        sendNotification("Break Complete! ☕", "Break time is over. Ready to focus again?")
       }
 
       if (mode === "focus") {
-        // Increment completed pomodoros
-        const newCompletedPomodoros = completedPomodoros + 1;
-        setCompletedPomodoros(newCompletedPomodoros);
+        const newCompletedPomodoros = completedPomodoros + 1
+        setCompletedPomodoros(newCompletedPomodoros)
 
-        // Check if it's time for a long break
         if (newCompletedPomodoros % settings.longBreakInterval === 0) {
-          setMode("longBreak");
-          setTimeRemaining(settings.longBreak);
+          setMode("longBreak")
+          setTimeRemaining(settings.longBreak)
         } else {
-          setMode("shortBreak");
-          setTimeRemaining(settings.shortBreak);
+          setMode("shortBreak")
+          setTimeRemaining(settings.shortBreak)
         }
 
-        // Auto start breaks if enabled
-        setIsRunning(settings.autoStartBreaks);
+        setIsRunning(settings.autoStartBreaks)
       } else {
-        // Break completed, go back to focus mode
-        setMode("focus");
-        setTimeRemaining(settings.focus);
-
-        // Auto start pomodoros if enabled
-        setIsRunning(settings.autoStartPomodoros);
+        setMode("focus")
+        setTimeRemaining(settings.focus)
+        setIsRunning(settings.autoStartPomodoros)
       }
     }
 
     return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [
-    isRunning,
-    timeRemaining,
-    mode,
-    completedPomodoros,
-    settings.longBreakInterval,
-    settings.focus,
-    settings.shortBreak,
-    settings.longBreak,
-    settings.autoStartBreaks,
-    settings.autoStartPomodoros,
-    notificationsEnabled,
-    currentTaskId,
-  ]);
+      if (interval) clearInterval(interval)
+    }
+  }, [isRunning, timeRemaining, mode, completedPomodoros, settings, notificationsEnabled, currentTaskId])
 
   // Update time remaining when mode changes
   useEffect(() => {
     if (mode === "focus") {
-      setTimeRemaining(settings.focus);
+      setTimeRemaining(settings.focus)
     } else if (mode === "shortBreak") {
-      setTimeRemaining(settings.shortBreak);
+      setTimeRemaining(settings.shortBreak)
     } else {
-      setTimeRemaining(settings.longBreak);
+      setTimeRemaining(settings.longBreak)
     }
-  }, [settings.focus, settings.shortBreak, settings.longBreak, mode]);
+  }, [settings.focus, settings.shortBreak, settings.longBreak, mode])
 
   // Format time as MM:SS
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`;
-  };
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+  }
 
   // Handle start/pause
   const toggleTimer = () => {
-    if (!isRunning && timeRemaining > 0) {
-      startSoundRef.current?.play();
-    }
-    setIsRunning(!isRunning);
-  };
+    setIsRunning(!isRunning)
+  }
 
   // Handle reset
   const resetTimer = () => {
-    setIsRunning(false);
-    sessionStartTime.current = null;
+    setIsRunning(false)
     if (mode === "focus") {
-      setTimeRemaining(settings.focus);
+      setTimeRemaining(settings.focus)
     } else if (mode === "shortBreak") {
-      setTimeRemaining(settings.shortBreak);
+      setTimeRemaining(settings.shortBreak)
     } else {
-      setTimeRemaining(settings.longBreak);
+      setTimeRemaining(settings.longBreak)
     }
-  };
+  }
 
   // Handle mode change
   const changeMode = (newMode: TimerMode) => {
-    setIsRunning(false);
-    sessionStartTime.current = null;
-    setMode(newMode);
+    setIsRunning(false)
+    setMode(newMode)
     if (newMode === "focus") {
-      setTimeRemaining(settings.focus);
+      setTimeRemaining(settings.focus)
     } else if (newMode === "shortBreak") {
-      setTimeRemaining(settings.shortBreak);
+      setTimeRemaining(settings.shortBreak)
     } else {
-      setTimeRemaining(settings.longBreak);
+      setTimeRemaining(settings.longBreak)
     }
-  };
-
-  // Update settings
-  const updateSettings = (newSettings: typeof settings) => {
-    setSettings(newSettings);
-    setSettingsOpen(false);
-
-    // Update current timer based on mode
-    if (mode === "focus") {
-      setTimeRemaining(newSettings.focus);
-    } else if (mode === "shortBreak") {
-      setTimeRemaining(newSettings.shortBreak);
-    } else {
-      setTimeRemaining(newSettings.longBreak);
-    }
-  };
+  }
 
   // Calculate progress percentage
   const calculateProgress = () => {
-    const total =
-      mode === "focus"
-        ? settings.focus
-        : mode === "shortBreak"
-        ? settings.shortBreak
-        : settings.longBreak;
+    const total = mode === "focus" ? settings.focus : mode === "shortBreak" ? settings.shortBreak : settings.longBreak
 
-    return ((total - timeRemaining) / total) * 100;
-  };
-
-  // Handle task operations
-  const addTask = (taskName: string) => {
-    const newTask: Task = {
-      id: Date.now().toString(),
-      name: taskName,
-      completed: false,
-      pomodorosCompleted: 0,
-      createdAt: new Date().toISOString(),
-    };
-
-    setTasks((prev) => [...prev, newTask]);
-  };
-
-  const toggleTaskCompletion = (taskId: string) => {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === taskId ? { ...task, completed: !task.completed } : task
-      )
-    );
-  };
-
-  const deleteTask = (taskId: string) => {
-    setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
-    if (currentTaskId === taskId) {
-      setCurrentTaskId(null);
-    }
-  };
-
-  const setCurrentTask = (taskId: string | null) => {
-    setCurrentTaskId(taskId);
-    setTasksOpen(false);
-  };
+    return ((total - timeRemaining) / total) * 100
+  }
 
   // Get current task name
   const getCurrentTaskName = () => {
-    if (!currentTaskId) return null;
-    const task = tasks.find((t) => t.id === currentTaskId);
-    return task ? task.name : null;
-  };
+    if (!currentTaskId) return null
+    for (const group of taskGroups) {
+      const task = group.tasks.find((t) => t.id === currentTaskId)
+      if (task) return task.name
+    }
+    return null
+  }
 
-  // Toggle mobile menu
-  const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
-  };
+  // Get mode display info
+  const getModeInfo = () => {
+    switch (mode) {
+      case "focus":
+        return { label: "Focus Time", color: "from-rose-400 to-pink-500", icon: "🎯" }
+      case "shortBreak":
+        return { label: "Short Break", color: "from-emerald-400 to-teal-500", icon: "☕" }
+      case "longBreak":
+        return { label: "Long Break", color: "from-blue-400 to-indigo-500", icon: "🌟" }
+    }
+  }
+
+  const modeInfo = getModeInfo()
 
   return (
-    <div className="relative w-full h-screen overflow-hidden">
+    <div className="relative w-full min-h-screen overflow-hidden">
       {/* Background */}
-      {background.type === "gradient" && (
-        <div className={`absolute inset-0 ${background.gradient}`} />
-      )}
+      {background.type === "gradient" && <div className={`absolute inset-0 ${background.gradient}`} />}
 
       {background.type === "image" && background.image && (
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${background.image})` }}
-        />
+        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${background.image})` }} />
       )}
 
       {background.type === "video" && background.video && (
-        <video
-          className="absolute inset-0 object-cover w-full h-full"
-          src={background.video}
-          autoPlay
-          muted
-          loop
-        />
+        <video className="absolute inset-0 object-cover w-full h-full" src={background.video} autoPlay muted loop />
       )}
 
-      {/* Overlay for better readability */}
-      <div className="absolute inset-0 bg-black/30" />
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px]" />
 
-      {/* Header/Navbar */}
+      {/* Header */}
       <header className="relative z-20 w-full">
-        <div className="bg-black/20 backdrop-blur-md border-b border-white/10">
-          <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-            <div className="flex items-center">
-              <h1 className="text-white text-xl font-bold">Pomodoro Timer</h1>
-
-              {/* Today's stats summary - desktop */}
-              <div className="ml-6 hidden md:flex items-center text-white/70 text-sm">
-                <span className="mr-4">
-                  Today: {Math.floor(todayStats.focusSeconds / 60)} minutes
-                  focused
-                </span>
-                <span>{todayStats.pomodorosCompleted} pomodoros completed</span>
+        <div className="bg-white/10 backdrop-blur-xl border-b border-white/20">
+          <div className="container mx-auto px-6 h-20 flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm flex items-center justify-center">
+                  <span className="text-2xl">🍅</span>
+                </div>
+                <div>
+                  <h1 className="text-white text-xl font-bold tracking-tight">Pomodoro</h1>
+                  <p className="text-white/70 text-sm">Focus & Productivity</p>
+                </div>
               </div>
             </div>
 
-            {/* Mobile menu button */}
-            <button
-              className="md:hidden text-white p-2"
-              onClick={toggleMobileMenu}
-            >
-              <Menu className="h-6 w-6" />
-            </button>
-
-            {/* Desktop navbar buttons */}
-            <div className="hidden md:flex items-center space-x-2">
-              {/* Task button */}
+            <div className="flex items-center space-x-3">
+              {/* Tasks Button */}
               <Dialog open={tasksOpen} onOpenChange={setTasksOpen}>
                 <DialogTrigger asChild>
                   <Button
                     variant="ghost"
-                    size="sm"
-                    className="text-white hover:bg-white/10"
+                    className="text-white hover:bg-white/10 border border-white/20 backdrop-blur-sm px-4 py-2 rounded-xl transition-all duration-200"
                   >
                     <ListTodo className="h-4 w-4 mr-2" />
                     Tasks
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-hidden">
                   <DialogHeader>
-                    <DialogTitle>Task Tracker</DialogTitle>
+                    <DialogTitle className="text-xl font-bold">Task Manager</DialogTitle>
                   </DialogHeader>
-                  <TaskTracker
-                    tasks={tasks}
+                  <TaskManager
+                    taskGroups={taskGroups}
+                    setTaskGroups={setTaskGroups}
                     currentTaskId={currentTaskId}
-                    onAddTask={addTask}
-                    onToggleCompletion={toggleTaskCompletion}
-                    onDeleteTask={deleteTask}
-                    onSelectTask={setCurrentTask}
+                    setCurrentTaskId={setCurrentTaskId}
                   />
                 </DialogContent>
               </Dialog>
 
-              {/* Stats button */}
-              <Dialog open={statsOpen} onOpenChange={setStatsOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-white hover:bg-white/10"
-                  >
-                    <BarChart2 className="h-4 w-4 mr-2" />
-                    Statistics
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Statistics Dashboard</DialogTitle>
-                  </DialogHeader>
-                  <StatisticsDashboard
-                    sessionHistory={sessionHistory}
-                    todayStats={todayStats}
-                  />
-                </DialogContent>
-              </Dialog>
-
-              {/* Settings button */}
+              {/* Settings Button */}
               <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
                 <DialogTrigger asChild>
                   <Button
                     variant="ghost"
-                    size="sm"
-                    className="text-white hover:bg-white/10"
+                    className="text-white hover:bg-white/10 border border-white/20 backdrop-blur-sm p-3 rounded-xl transition-all duration-200"
                   >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Settings
+                    <Settings className="h-4 w-4" />
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Timer Settings</DialogTitle>
+                    <DialogTitle className="text-xl font-bold">Timer Settings</DialogTitle>
                   </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="focusTime">Focus Time (minutes)</Label>
+                  <div className="grid gap-6 py-4">
+                    <div className="grid gap-3">
+                      <Label htmlFor="focusTime" className="text-sm font-medium">
+                        Focus Time (minutes)
+                      </Label>
                       <Input
                         id="focusTime"
                         type="number"
@@ -586,19 +367,17 @@ export default function PomodoroTimer() {
                         max="60"
                         value={settings.focus / 60}
                         onChange={(e) => {
-                          const value = Number.parseInt(e.target.value);
+                          const value = Number.parseInt(e.target.value)
                           if (!isNaN(value) && value > 0) {
-                            setSettings({
-                              ...settings,
-                              focus: value * 60,
-                            });
+                            setSettings({ ...settings, focus: value * 60 })
                           }
                         }}
+                        className="rounded-xl"
                       />
                     </div>
 
-                    <div className="grid gap-2">
-                      <Label htmlFor="shortBreakTime">
+                    <div className="grid gap-3">
+                      <Label htmlFor="shortBreakTime" className="text-sm font-medium">
                         Short Break (minutes)
                       </Label>
                       <Input
@@ -608,19 +387,17 @@ export default function PomodoroTimer() {
                         max="30"
                         value={settings.shortBreak / 60}
                         onChange={(e) => {
-                          const value = Number.parseInt(e.target.value);
+                          const value = Number.parseInt(e.target.value)
                           if (!isNaN(value) && value > 0) {
-                            setSettings({
-                              ...settings,
-                              shortBreak: value * 60,
-                            });
+                            setSettings({ ...settings, shortBreak: value * 60 })
                           }
                         }}
+                        className="rounded-xl"
                       />
                     </div>
 
-                    <div className="grid gap-2">
-                      <Label htmlFor="longBreakTime">
+                    <div className="grid gap-3">
+                      <Label htmlFor="longBreakTime" className="text-sm font-medium">
                         Long Break (minutes)
                       </Label>
                       <Input
@@ -630,19 +407,17 @@ export default function PomodoroTimer() {
                         max="60"
                         value={settings.longBreak / 60}
                         onChange={(e) => {
-                          const value = Number.parseInt(e.target.value);
+                          const value = Number.parseInt(e.target.value)
                           if (!isNaN(value) && value > 0) {
-                            setSettings({
-                              ...settings,
-                              longBreak: value * 60,
-                            });
+                            setSettings({ ...settings, longBreak: value * 60 })
                           }
                         }}
+                        className="rounded-xl"
                       />
                     </div>
 
-                    <div className="grid gap-2">
-                      <Label htmlFor="longBreakInterval">
+                    <div className="grid gap-3">
+                      <Label htmlFor="longBreakInterval" className="text-sm font-medium">
                         Long Break Interval
                       </Label>
                       <Input
@@ -652,462 +427,183 @@ export default function PomodoroTimer() {
                         max="10"
                         value={settings.longBreakInterval}
                         onChange={(e) => {
-                          const value = Number.parseInt(e.target.value);
+                          const value = Number.parseInt(e.target.value)
                           if (!isNaN(value) && value > 0) {
-                            setSettings({
-                              ...settings,
-                              longBreakInterval: value,
-                            });
+                            setSettings({ ...settings, longBreakInterval: value })
                           }
                         }}
+                        className="rounded-xl"
                       />
                     </div>
 
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="autoStartBreaks"
-                        checked={settings.autoStartBreaks}
-                        onChange={(e) => {
-                          setSettings({
-                            ...settings,
-                            autoStartBreaks: e.target.checked,
-                          });
-                        }}
-                        className="rounded border-gray-300"
-                      />
-                      <Label htmlFor="autoStartBreaks">Auto-start Breaks</Label>
-                    </div>
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          id="autoStartBreaks"
+                          checked={settings.autoStartBreaks}
+                          onChange={(e) => {
+                            setSettings({ ...settings, autoStartBreaks: e.target.checked })
+                          }}
+                          className="w-4 h-4 rounded border-gray-300"
+                        />
+                        <Label htmlFor="autoStartBreaks" className="text-sm font-medium">
+                          Auto-start Breaks
+                        </Label>
+                      </div>
 
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="autoStartPomodoros"
-                        checked={settings.autoStartPomodoros}
-                        onChange={(e) => {
-                          setSettings({
-                            ...settings,
-                            autoStartPomodoros: e.target.checked,
-                          });
-                        }}
-                        className="rounded border-gray-300"
-                      />
-                      <Label htmlFor="autoStartPomodoros">
-                        Auto-start Pomodoros
-                      </Label>
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          id="autoStartPomodoros"
+                          checked={settings.autoStartPomodoros}
+                          onChange={(e) => {
+                            setSettings({ ...settings, autoStartPomodoros: e.target.checked })
+                          }}
+                          className="w-4 h-4 rounded border-gray-300"
+                        />
+                        <Label htmlFor="autoStartPomodoros" className="text-sm font-medium">
+                          Auto-start Pomodoros
+                        </Label>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex justify-end">
-                    <Button onClick={() => updateSettings(settings)}>
+                  <div className="flex justify-end pt-4">
+                    <Button onClick={() => setSettingsOpen(false)} className="rounded-xl px-6">
                       Save Settings
                     </Button>
                   </div>
                 </DialogContent>
               </Dialog>
 
-              {/* Notification toggle */}
+              {/* Notification Toggle */}
               {notificationsSupported && (
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="text-white hover:bg-white/10"
                   onClick={toggleNotifications}
-                  title={
-                    notificationsEnabled
-                      ? "Disable notifications"
-                      : "Enable notifications"
-                  }
+                  className="text-white hover:bg-white/10 border border-white/20 backdrop-blur-sm p-3 rounded-xl transition-all duration-200"
+                  title={notificationsEnabled ? "Disable notifications" : "Enable notifications"}
                 >
-                  {notificationsEnabled ? (
-                    <>
-                      <Bell className="h-4 w-4 mr-2" />
-                      Notifications On
-                    </>
-                  ) : (
-                    <>
-                      <BellOff className="h-4 w-4 mr-2" />
-                      Notifications Off
-                    </>
-                  )}
+                  {notificationsEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
                 </Button>
               )}
+
+              {/* Background Selector */}
+              <BackgroundSelector currentBackground={background} onBackgroundChange={setBackground} />
             </div>
           </div>
         </div>
+      </header>
 
-        {/* Mobile menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden absolute w-full bg-black/30 backdrop-blur-md border-b border-white/10 z-30">
-            <div className="px-4 py-3 space-y-2">
-              <Dialog
-                open={tasksOpen}
-                onOpenChange={(open) => {
-                  setTasksOpen(open);
-                  if (!open) setMobileMenuOpen(false);
-                }}
-              >
-                <DialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-white hover:bg-white/10 w-full justify-start"
-                  >
-                    <ListTodo className="h-4 w-4 mr-2" />
-                    Tasks
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Task Tracker</DialogTitle>
-                  </DialogHeader>
-                  <TaskTracker
-                    tasks={tasks}
-                    currentTaskId={currentTaskId}
-                    onAddTask={addTask}
-                    onToggleCompletion={toggleTaskCompletion}
-                    onDeleteTask={deleteTask}
-                    onSelectTask={(taskId) => {
-                      setCurrentTask(taskId);
-                      setMobileMenuOpen(false);
-                    }}
+      {/* Main Content */}
+      <div className="relative z-10 flex flex-col items-center justify-center w-full min-h-[calc(100vh-5rem)] px-6 py-8">
+        <div className="w-full max-w-lg mx-auto">
+          {/* Timer Card */}
+          <div className="bg-white/10 backdrop-blur-2xl rounded-3xl p-8 shadow-2xl border border-white/20 mb-8">
+            {/* Mode Selector */}
+            <div className="flex items-center justify-center mb-8">
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-1 border border-white/20">
+                <div className="flex space-x-1">
+                  {[
+                    { mode: "focus" as TimerMode, label: "Focus", icon: "🎯" },
+                    { mode: "shortBreak" as TimerMode, label: "Short", icon: "☕" },
+                    { mode: "longBreak" as TimerMode, label: "Long", icon: "🌟" },
+                  ].map(({ mode: m, label, icon }) => (
+                    <button
+                      key={m}
+                      onClick={() => changeMode(m)}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                        mode === m
+                          ? "bg-white text-gray-900 shadow-lg"
+                          : "text-white/80 hover:text-white hover:bg-white/10"
+                      }`}
+                    >
+                      <span className="mr-2">{icon}</span>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Current Task Display */}
+            {currentTaskId && (
+              <div className="text-center mb-6">
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/20">
+                  <p className="text-white/80 text-sm font-medium mb-1">Current Task</p>
+                  <p className="text-white font-semibold truncate">{getCurrentTaskName()}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Timer Display */}
+            <div className="relative flex flex-col items-center justify-center mb-8">
+              {/* Progress Circle */}
+              <div className="relative w-64 h-64 mb-6">
+                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="2" />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="45"
+                    fill="none"
+                    stroke="url(#gradient)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeDasharray="283"
+                    strokeDashoffset={283 - (283 * calculateProgress()) / 100}
+                    className="transition-all duration-1000 ease-out"
                   />
-                </DialogContent>
-              </Dialog>
+                  <defs>
+                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="rgba(255,255,255,0.9)" />
+                      <stop offset="100%" stopColor="rgba(255,255,255,0.6)" />
+                    </linearGradient>
+                  </defs>
+                </svg>
 
-              <Dialog
-                open={statsOpen}
-                onOpenChange={(open) => {
-                  setStatsOpen(open);
-                  if (!open) setMobileMenuOpen(false);
-                }}
-              >
-                <DialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-white hover:bg-white/10 w-full justify-start"
-                  >
-                    <BarChart2 className="h-4 w-4 mr-2" />
-                    Statistics
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Statistics Dashboard</DialogTitle>
-                  </DialogHeader>
-                  <StatisticsDashboard
-                    sessionHistory={sessionHistory}
-                    todayStats={todayStats}
-                  />
-                </DialogContent>
-              </Dialog>
+                {/* Timer Text */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <div className="text-6xl font-bold text-white mb-2 tracking-tight">{formatTime(timeRemaining)}</div>
+                  <div className="text-white/80 text-lg font-medium">{modeInfo.label}</div>
+                </div>
+              </div>
 
-              <Dialog
-                open={settingsOpen}
-                onOpenChange={(open) => {
-                  setSettingsOpen(open);
-                  if (!open) setMobileMenuOpen(false);
-                }}
-              >
-                <DialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-white hover:bg-white/10 w-full justify-start"
-                  >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Settings
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Timer Settings</DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="focusTimeMobile">
-                        Focus Time (minutes)
-                      </Label>
-                      <Input
-                        id="focusTimeMobile"
-                        type="number"
-                        min="1"
-                        max="60"
-                        value={settings.focus / 60}
-                        onChange={(e) => {
-                          const value = Number.parseInt(e.target.value);
-                          if (!isNaN(value) && value > 0) {
-                            setSettings({
-                              ...settings,
-                              focus: value * 60,
-                            });
-                          }
-                        }}
-                      />
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="shortBreakTimeMobile">
-                        Short Break (minutes)
-                      </Label>
-                      <Input
-                        id="shortBreakTimeMobile"
-                        type="number"
-                        min="1"
-                        max="30"
-                        value={settings.shortBreak / 60}
-                        onChange={(e) => {
-                          const value = Number.parseInt(e.target.value);
-                          if (!isNaN(value) && value > 0) {
-                            setSettings({
-                              ...settings,
-                              shortBreak: value * 60,
-                            });
-                          }
-                        }}
-                      />
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="longBreakTimeMobile">
-                        Long Break (minutes)
-                      </Label>
-                      <Input
-                        id="longBreakTimeMobile"
-                        type="number"
-                        min="1"
-                        max="60"
-                        value={settings.longBreak / 60}
-                        onChange={(e) => {
-                          const value = Number.parseInt(e.target.value);
-                          if (!isNaN(value) && value > 0) {
-                            setSettings({
-                              ...settings,
-                              longBreak: value * 60,
-                            });
-                          }
-                        }}
-                      />
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="longBreakIntervalMobile">
-                        Long Break Interval
-                      </Label>
-                      <Input
-                        id="longBreakIntervalMobile"
-                        type="number"
-                        min="1"
-                        max="10"
-                        value={settings.longBreakInterval}
-                        onChange={(e) => {
-                          const value = Number.parseInt(e.target.value);
-                          if (!isNaN(value) && value > 0) {
-                            setSettings({
-                              ...settings,
-                              longBreakInterval: value,
-                            });
-                          }
-                        }}
-                      />
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="autoStartBreaksMobile"
-                        checked={settings.autoStartBreaks}
-                        onChange={(e) => {
-                          setSettings({
-                            ...settings,
-                            autoStartBreaks: e.target.checked,
-                          });
-                        }}
-                        className="rounded border-gray-300"
-                      />
-                      <Label htmlFor="autoStartBreaksMobile">
-                        Auto-start Breaks
-                      </Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="autoStartPomodorosMobile"
-                        checked={settings.autoStartPomodoros}
-                        onChange={(e) => {
-                          setSettings({
-                            ...settings,
-                            autoStartPomodoros: e.target.checked,
-                          });
-                        }}
-                        className="rounded border-gray-300"
-                      />
-                      <Label htmlFor="autoStartPomodorosMobile">
-                        Auto-start Pomodoros
-                      </Label>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <Button onClick={() => updateSettings(settings)}>
-                      Save Settings
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              {notificationsSupported && (
+              {/* Controls */}
+              <div className="flex items-center justify-center space-x-4">
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="text-white hover:bg-white/10 w-full justify-start"
-                  onClick={() => {
-                    toggleNotifications();
-                    setMobileMenuOpen(false);
-                  }}
+                  onClick={resetTimer}
+                  className="w-14 h-14 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-sm transition-all duration-200"
                 >
-                  {notificationsEnabled ? (
-                    <>
-                      <Bell className="h-4 w-4 mr-2" />
-                      Notifications On
-                    </>
-                  ) : (
-                    <>
-                      <BellOff className="h-4 w-4 mr-2" />
-                      Notifications Off
-                    </>
-                  )}
+                  <RefreshCw className="h-6 w-6 text-white" />
                 </Button>
-              )}
 
-              {/* Today's stats summary - mobile */}
-              <div className="text-white/70 text-sm pt-2 border-t border-white/10">
-                <div className="mb-1">
-                  Today: {Math.floor(todayStats.focusSeconds / 60)} minutes
-                  focused
-                </div>
-                <div>{todayStats.pomodorosCompleted} pomodoros completed</div>
+                <Button
+                  variant="ghost"
+                  onClick={toggleTimer}
+                  className="w-20 h-20 rounded-2xl bg-white/20 hover:bg-white/30 border border-white/30 backdrop-blur-sm transition-all duration-200 shadow-xl"
+                >
+                  {isRunning ? <Pause className="h-8 w-8 text-white" /> : <Play className="h-8 w-8 text-white ml-1" />}
+                </Button>
+              </div>
+            </div>
+
+            {/* Session Counter */}
+            <div className="text-center">
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl px-6 py-3 border border-white/20 inline-block">
+                <span className="text-white/80 text-sm font-medium">Completed: </span>
+                <span className="text-white text-lg font-bold">{completedPomodoros}</span>
+                <span className="text-white/80 text-sm font-medium"> pomodoros</span>
               </div>
             </div>
           </div>
-        )}
-      </header>
-
-      {/* Main content */}
-      <div className="relative z-10 flex flex-col items-center justify-center w-full h-[calc(100vh-4rem)] px-4">
-        <div className="w-full max-w-md mx-auto bg-black/20 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-white/10">
-          {/* Timer tabs */}
-          <Tabs
-            defaultValue="focus"
-            value={mode}
-            onValueChange={(value) => changeMode(value as TimerMode)}
-            className="w-full"
-          >
-            <TabsList className="flex mb-6 w-full">
-              <TabsTrigger value="focus" className="flex-1 text-center">
-                Focus
-              </TabsTrigger>
-              <TabsTrigger value="shortBreak" className="flex-1 text-center">
-                Short Break
-              </TabsTrigger>
-              <TabsTrigger value="longBreak" className="flex-1 text-center">
-                Long Break
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          {/* Current task display */}
-          {currentTaskId && (
-            <div className="mb-4 text-center">
-              <p className="text-white/80 text-sm">Current Task:</p>
-              <p className="text-white font-medium truncate">
-                {getCurrentTaskName()}
-              </p>
-            </div>
-          )}
-
-          {/* Timer display */}
-          <div className="relative flex flex-col items-center justify-center my-8">
-            <div className="text-7xl font-bold text-white mb-4">
-              {formatTime(timeRemaining)}
-            </div>
-
-            {/* Progress circle */}
-            <div className="absolute -inset-4">
-              <svg className="w-full h-full" viewBox="0 0 100 100">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.1)"
-                  strokeWidth="2"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.8)"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeDasharray="283"
-                  strokeDashoffset={283 - (283 * calculateProgress()) / 100}
-                  transform="rotate(-90 50 50)"
-                />
-              </svg>
-            </div>
-          </div>
-
-          {/* Controls */}
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-12 w-12 rounded-full bg-white/10 border-white/20 hover:bg-white/20"
-              onClick={resetTimer}
-            >
-              <RefreshCw className="h-5 w-5 text-white" />
-            </Button>
-
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-16 w-16 rounded-full bg-white/10 border-white/20 hover:bg-white/20"
-              onClick={toggleTimer}
-            >
-              {isRunning ? (
-                <Pause className="h-6 w-6 text-white" />
-              ) : (
-                <Play className="h-6 w-6 text-white ml-1" />
-              )}
-            </Button>
-          </div>
-
-          {/* Session counter */}
-          <div className="flex items-center justify-center gap-2 text-white/80">
-            <div className="text-sm">
-              Completed: <span className="font-bold">{completedPomodoros}</span>{" "}
-              pomodoros
-            </div>
-          </div>
         </div>
 
-        {/* Background selector */}
-        <div className="absolute bottom-8 right-8">
-          <BackgroundSelector
-            currentBackground={background}
-            onBackgroundChange={setBackground}
-          />
-        </div>
-
-        {/* Creator credit */}
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white/50 text-xs">
-          Created by Bhisma Aprian Prayogi
-        </div>
+        {/* Creator Credit */}
+        <div className="text-white/50 text-sm text-center">Created by Bhisma Aprian Prayogi</div>
       </div>
     </div>
-  );
+  )
 }
